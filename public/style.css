@@ -4,12 +4,66 @@
     bottom: 0px;
     left: 0px;
     right: 0px;
+    display:flex;
+    justify-content: center;
 }
 
 .custom-button{
+    margin: 5px;
     padding: 5px;
     color: white;
     background-color: #CC5500;
     border-radius: 12px;
     font-size: 16px;
+    cursor:pointer;
+    width: 100px;
+    transition: 0.1s;
+    text-align: center;
+}
+
+.custom-button:hover{
+    background-color: #9E4200;
+}
+
+.custom-button:active{
+    background-color: #702F00;
+    transition: 0s;
+}
+
+.outer-box{
+    margin:5px;
+}
+
+.no-select{
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none;
+}
+
+#middle-box{
+    max-width: 72em;
+    width: 100%;
+}
+
+#modal-back{
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    background-color: rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#modal{
+    padding: 2em;
+    z-index: 15;
+    background-color: white;
+    border-radius: 2em;
 }
