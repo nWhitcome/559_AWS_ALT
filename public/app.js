@@ -5,13 +5,17 @@ const store = new Vuex.Store({
         modal: {
             show: false,
             content: ""
-        }
+        },
+        ASInstances: []
     },
     mutations: {
-        toggleModal(state, newContent, newButton){
+        toggleModal(state, newContent){
             state.modal.content = newContent;
-            state.modal.buttonText = newButton;
             state.modal.show = !state.modal.show;
+        },
+        updateAS(state, newContent){
+            state.ASInstances = JSON.parse(newContent);
+            console.log(newContent);
         }
     }
 })
@@ -26,7 +30,7 @@ Vue.component('custom-button', {
 Vue.component('modal', {
     methods: {
         closeModal: function(){
-            store.commit('toggleModal', "", "");
+            store.commit('toggleModal', "");
         }
     },
     template: `
@@ -46,6 +50,10 @@ socket.on("error", (errorMessage) => {
 socket.on("getKey", (fileInfo) => {
     downloadFile(fileInfo.name + ".pem", fileInfo.content);
     store.commit('toggleModal', "IMPORTANT: The private key required to access the created instance has begun its download. Do not lose this key or share it with anyone.")
+})
+
+socket.on("updateAS", (newContent) => {
+    store.commit('updateAS', newContent);
 })
 
 function downloadFile(filename, text){
@@ -75,14 +83,44 @@ new Vue({
         createLaunchConfig: function(nameValue, maxScale, desired){
             socket.emit("makeGroup", nameValue, {max: maxScale, desired: desired});
         },
+        refresh: function(){
+            socket.emit("refresh");
+        },
+        inactiveInst: function (instance){
+            var numInactive = instance.max - instance.instances.length;
+            var holderArr = [];
+            for(var i = 0; i < numInactive; i++) holderArr.push("");
+            return holderArr; 
+        },
+        deleteAS(item){
+            console.log(item)
+            socket.emit("delete", item.name.substring(0, item.name.length - 2))
+        },
+        openModal(content){
+            store.commit('toggleModal', "Id: " + content);
+        }
     },
     template:`
         <div id="app-area">
-            <div id="middle-box"> 
-                <input v-model="nameMessage" placeholder="Instance name">
-                <input v-model="maxScale" placeholder="Max scaling size">
-                <input v-model="desired" placeholder="Desired scale capacity">
-                <custom-button @click.native="createLaunchConfig(nameMessage, maxScale, desired)" text-val="Create Instance" ></custom-button>
+            <div id="middle-box">
+                <div id="topContent">
+                    <input v-model="nameMessage" placeholder="Instance name">
+                    <input v-model="maxScale" placeholder="Max scaling size">
+                    <input v-model="desired" placeholder="Desired scale capacity">
+                    <div id="createRefreshBox">
+                        <custom-button style="width: 120px;" @click.native="createLaunchConfig(nameMessage, maxScale, desired)" text-val="Create Instance" ></custom-button>
+                        <custom-button @click.native="refresh()" text-val="Refresh"></custom-button>
+                    </div>
+                </div>
+                <div id="ASGHolder">
+                    <div class="ASGGroup" v-for="item in this.$store.state.ASInstances">
+                        <div class="ASGInfo">{{item.name}}
+                            <custom-button text-val="Delete" @click.native="deleteAS(item)"></custom-button>
+                        </div>
+                        <div class="ASGItem" style="cursor:pointer" v-for="(instance, index) in item.instances" @click="openModal(instance.InstanceId)">{{index}}</div>
+                        <div class="ASGItem" v-for="inactive in inactiveInst(item)" style="background-color: #D3D3CB"></div>
+                    </div>
+                </div>
             </div>
             <modal v-if="this.$store.state.modal.show"></modal>
         </div>

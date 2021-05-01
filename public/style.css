@@ -6,6 +6,7 @@
     right: 0px;
     display:flex;
     justify-content: center;
+    font-family: 'Roboto', sans-serif;
 }
 
 .custom-button{
@@ -66,4 +67,80 @@
     z-index: 15;
     background-color: white;
     border-radius: 2em;
+}
+
+#ASGHolder{
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+}
+
+.ASGGroup{
+    padding: 10px 0 0 10px;
+    max-width: 210px;
+    border-radius: 15px;
+    border: 2px solid;
+    border-color: #D3D3CB;
+    margin: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+.ASGInfo{
+    width: 100%;
+    padding: 0 10px 10px 5px;
+    display: flex;
+    align-items:center;
+    height: 50px;
+    justify-content: space-between;
+    flex-direction: column;
+}
+
+.ASGItem{
+    background-color: #009025;
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    margin: 0 10px 10px 0;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    align-items:center;
+    color: white;
+    transition: .1s;
+}
+
+.ASGItem:hover{
+    background-color: #00731e;
+}
+
+.ASGItem:active{
+    transition: 0;
+    background-color: #005c18;
+}
+
+input{
+    border-radius: 1em;
+    border: 2px solid;
+    border-color: #D3D3CB;
+    padding: .3em;
+    width: 200px;
+    margin: .5em;
+}
+
+#topContent{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: .5em .5em 0 .5em;
+}
+
+#createRefreshBox{
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
 }

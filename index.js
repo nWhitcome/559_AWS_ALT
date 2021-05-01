@@ -1,4 +1,3 @@
-const { resolveSoa } = require('dns');
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -17,8 +16,15 @@ app.get('/', function(request, response){
 
 io.on('connection', (socket) => {
     console.log("a user connected");
+    refreshScaling(socket);
     socket.on("makeGroup", (name, scaleGroup) => {
         keyMake(name, socket, scaleGroup);
+    })
+    socket.on("refresh", () => {
+        refreshScaling(socket);
+    })
+    socket.on("delete", (name) => {
+        ASDelete(name, socket);
     })
 })
 
@@ -53,17 +59,36 @@ function keyMake(keyName, socket, scaleGroup){
     })
 }
 
+function keyDelete(keyName, socket){
+    var keyParams = {
+        KeyName: keyName + "Key",
+    };
+    ec2.deleteKeyPair(keyParams, function(err, data){
+        if(err){
+            console.log(err);
+        }
+        else{
+            console.log(data);
+            SGDelete(keyName, socket);
+        }
+    })
+}
+
 function SGMake(groupName, socket, scaleGroup){
     ec2.describeVpcs(function(err, data){
         if(err) {
             io.to(socket.id).emit("error", "Err: Cannot retrieve a VPC");
         }
         else{
-            vpc = data.Vpcs[0].VpcId;
+            vpc = null;
+            for(var i = 0; i < data.Vpcs.length || vpc == null; i++){
+                if(data.Vpcs[i].IsDefault){
+                    vpc = data.Vpcs[i].VpcId;
+                }
+            }
             var paramsSecurityGroup = {
                 Description: 'Security group for ' + groupName,
                 GroupName: groupName + "SG",
-                VpcId: vpc
             };
             ec2.createSecurityGroup(paramsSecurityGroup, function(err, data){
                 if(err) {
@@ -95,7 +120,7 @@ function SGMake(groupName, socket, scaleGroup){
                         }
                         else{
                             console.log("Ingress successfully set", data);
-                            LCMake(groupName, socket, SecurityGroupId, scaleGroup);
+                            LCMake(groupName, socket, SecurityGroupId, scaleGroup, vpc);
                         }
                     })
                 }
@@ -104,7 +129,21 @@ function SGMake(groupName, socket, scaleGroup){
     })
 }
 
-function LCMake(LCName, socket, SGId, scaleGroup){
+function SGDelete(SGName, socket){
+    var SGParams = {
+        GroupName: SGName + "SG"
+    }
+    ec2.deleteSecurityGroup(SGParams, function(err, data) {
+        if(err){
+            console.log(err)
+        }
+        else{
+            console.log("Deleted security group")
+        }
+    })
+}
+
+function LCMake(LCName, socket, SGId, scaleGroup, vpc){
     var LCParams = {
         ImageId: "ami-e81b308d",
         UserData: "",
@@ -119,27 +158,87 @@ function LCMake(LCName, socket, SGId, scaleGroup){
             io.to(socket.id).emit("error", "Err: Couldn't create launch configuration");
         }
         else{
-            console.log(data);
+            console.log("Launch configuration creation sucessful");
+            listSubnets(LCName, socket, scaleGroup, vpc);
         }
     })
 }
 
-function ASMake(ASName, socket, scaleGroup){
+function LCDelete(LCName, socket){
+    var LCParams = {
+        LaunchConfigurationName: LCName + "LC",
+    }
+    autoscaling.deleteLaunchConfiguration(LCParams, function(err, data){
+        if(err){
+            console.log(err)
+        }
+        else{
+            console.log("Deleted launch configuration")
+            keyDelete(LCName, socket);
+        }
+    })
+}
+
+function ASMake(ASName, socket, scaleGroup, subnets){
+    var subnetIds = [];
+    for(var i = 0; i < subnets.length; i++){
+        subnetIds.push(subnets[i].SubnetId);
+    }
     var ASParams = {
         AutoScalingGroupName: ASName + "AS",
         HealthCheckGracePeriod: 300,
         LaunchConfigurationName: ASName + "LC",
-        MaxSize: scaleGroup.maxScale,
+        MaxSize: scaleGroup.max,
         MinSize: 1,
-        VPCZoneIdentifier: "subnet-c918b4a0, subnet-a018ebdb, subnet-25584e6f",
+        VPCZoneIdentifier: subnetIds.join(),
         DesiredCapacity: scaleGroup.desired
     }
     autoscaling.createAutoScalingGroup(ASParams, function(err){
         if(err){
+            console.log(err)
             io.to(socket.id).emit("error", "Err: Couldn't create auto scaling group");
         }
         else{
-            console.log("Auto scaling group created")
+            console.log("Auto scaling group sucessfully created")
+            scalingPolicyMake(ASName, socket)
+        }
+    })
+}
+
+function ASDelete(ASName, socket){
+    var ASParams = {
+        AutoScalingGroupName: ASName + "AS",
+        ForceDelete: true
+    };
+    autoscaling.deleteAutoScalingGroup(ASParams, function(err, data){
+        if(err){
+            console.log(err)
+        }
+        else{
+            console.log("Auto scaling group deleted")
+            LCDelete(ASName, socket);
+        }
+    })
+}
+
+function listSubnets(LSName, socket, scaleGroup, vpc){
+    var LSParams = {
+        Filters: [
+            {
+                Name: 'vpc-id',
+                Values: [
+                    vpc
+                ]
+            }
+        ]
+    };
+    ec2.describeSubnets(LSParams, function(err, data){
+        if(err){
+            io.to(socket.id).emit("error", "Err: Could not find subnet info for the VPC");
+            console.log(err)
+        }
+        else{
+            ASMake(LSName, socket, scaleGroup, data.Subnets)
         }
     })
 }
@@ -163,6 +262,27 @@ function scalingPolicyMake(SPName, socket){
         }
         else{
             console.log("Scaling policy added")
+            refreshScaling(socket);
         }
     })
+}
+
+function refreshScaling(socket){
+    var refreshParams = {
+    };
+    autoscaling.describeAutoScalingGroups(refreshParams, function(err, data){
+        if(err){
+            io.to(socket.id).emit("error", "Err: Could not refresh auto scaling group information");
+        }
+        else{
+            var scaleData = [];
+            for(var i = 0; i < data.AutoScalingGroups.length; i++){
+                scaleData.push({name: data.AutoScalingGroups[i].AutoScalingGroupName, 
+                                desired: data.AutoScalingGroups[i].DesiredCapacity, 
+                                max: data.AutoScalingGroups[i].MaxSize, 
+                                instances: data.AutoScalingGroups[i].Instances})
+            }
+            io.to(socket.id).emit("updateAS", JSON.stringify(scaleData));
+        }
+    });
 }
