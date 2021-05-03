@@ -1,5 +1,6 @@
 var socket = io();
 
+// A Vuex store for state management.
 const store = new Vuex.Store({
     state: {
         modal: {
@@ -20,6 +21,7 @@ const store = new Vuex.Store({
     }
 })
 
+// A custom button that can be placed. Made for consistency.
 Vue.component('custom-button', {
     props: ['textVal'],
     template: `
@@ -27,6 +29,7 @@ Vue.component('custom-button', {
     `
 })
 
+// The modal that displays important information to the user.
 Vue.component('modal', {
     methods: {
         closeModal: function(){
@@ -43,19 +46,23 @@ Vue.component('modal', {
     `
 })
 
+// Toggles the modal when there is an error
 socket.on("error", (errorMessage) => {
     store.commit('toggleModal', errorMessage)
 })
 
+// Calls the function that downloads a private key and then displays a modal with key information.
 socket.on("getKey", (fileInfo) => {
     downloadFile(fileInfo.name + ".pem", fileInfo.content);
     store.commit('toggleModal', "IMPORTANT: The private key required to access the created instance has begun its download. Do not lose this key or share it with anyone.")
 })
 
+// Updates the gui with current auto scaling group information
 socket.on("updateAS", (newContent) => {
     store.commit('updateAS', newContent);
 })
 
+// Downloads a file with private key information.
 function downloadFile(filename, text){
     var element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
@@ -69,6 +76,7 @@ function downloadFile(filename, text){
     document.body.removeChild(element);
 }
 
+// The vue app that displays the general HTML Vue layout for the page. Also has functions that are called when HTML components are clicked.
 new Vue({
     el:'#app',
     store,

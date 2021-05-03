@@ -133,7 +133,7 @@ input{
 }
 
 #topContent{
-    width: 100%;
+    width: calc(100% - 1em);
     display: flex;
     flex-direction: column;
     padding: .5em .5em 0 .5em;

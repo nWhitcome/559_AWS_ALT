@@ -8,12 +8,17 @@ var AWS = require('aws-sdk');
 const helmet = require('helmet');
 path = require('path');
 
+// Setting up the server and pointing to the main HTML file.
 app.use(express.static(__dirname));
 app.use(helmet());
 app.get('/', function(request, response){
     response.sendFile(__dirname + '/index.html');
 })
 
+/* 
+    Displays a message when a user connects to the web socket.
+    Also contains commands for messages that are sent by the client.
+*/
 io.on('connection', (socket) => {
     console.log("a user connected");
     refreshScaling(socket);
@@ -28,9 +33,11 @@ io.on('connection', (socket) => {
     })
 })
 
+// Starts ther server on the given port.
 server.listen(port);
 console.log("listening on port " + port);
 
+// Gets credentials for AWS. Uses the ones set up on the current PC.
 AWS.config.getCredentials(function(err){
     if(err) console.log(err.stack);
     else{
@@ -38,9 +45,11 @@ AWS.config.getCredentials(function(err){
     }
 })
 
+// Creates a new EC2 and autoscaling instance through the AWS SDK.
 var ec2 = new AWS.EC2();
 var autoscaling = new AWS.AutoScaling();
 
+// Creates a new key pair on AWS.
 function keyMake(keyName, socket, scaleGroup){
     var keyParams = {
         KeyName: keyName + "Key"
@@ -59,6 +68,7 @@ function keyMake(keyName, socket, scaleGroup){
     })
 }
 
+// Deletes a given key pair on AWS.
 function keyDelete(keyName, socket){
     var keyParams = {
         KeyName: keyName + "Key",
@@ -74,6 +84,7 @@ function keyDelete(keyName, socket){
     })
 }
 
+// Creates a security group using the previously created key pair.
 function SGMake(groupName, socket, scaleGroup){
     ec2.describeVpcs(function(err, data){
         if(err) {
@@ -129,6 +140,7 @@ function SGMake(groupName, socket, scaleGroup){
     })
 }
 
+// Deletes a security group with a given name.
 function SGDelete(SGName, socket){
     var SGParams = {
         GroupName: SGName + "SG"
@@ -143,6 +155,7 @@ function SGDelete(SGName, socket){
     })
 }
 
+// Creates a launch configuration with the previously created security group and key pair.
 function LCMake(LCName, socket, SGId, scaleGroup, vpc){
     var LCParams = {
         ImageId: "ami-e81b308d",
@@ -164,6 +177,7 @@ function LCMake(LCName, socket, SGId, scaleGroup, vpc){
     })
 }
 
+// Deletes the launch configuration with the given name.
 function LCDelete(LCName, socket){
     var LCParams = {
         LaunchConfigurationName: LCName + "LC",
@@ -179,6 +193,7 @@ function LCDelete(LCName, socket){
     })
 }
 
+// Creates an auto scaling group with the previously created launch configuration and user arguments.
 function ASMake(ASName, socket, scaleGroup, subnets){
     var subnetIds = [];
     for(var i = 0; i < subnets.length; i++){
@@ -205,6 +220,7 @@ function ASMake(ASName, socket, scaleGroup, subnets){
     })
 }
 
+// Deletes a given auto scaling group.
 function ASDelete(ASName, socket){
     var ASParams = {
         AutoScalingGroupName: ASName + "AS",
@@ -221,6 +237,7 @@ function ASDelete(ASName, socket){
     })
 }
 
+// Lists all available subnets on the given VPC.
 function listSubnets(LSName, socket, scaleGroup, vpc){
     var LSParams = {
         Filters: [
@@ -243,6 +260,7 @@ function listSubnets(LSName, socket, scaleGroup, vpc){
     })
 }
 
+// Creates a scaling policy to put on the auto scaling group.
 function scalingPolicyMake(SPName, socket){
     var SPParams = {
         AutoScalingGroupName: SPName + "AS",
@@ -267,6 +285,7 @@ function scalingPolicyMake(SPName, socket){
     })
 }
 
+// Refreshes information on the current auto scaling groups and sends it to the client that asked for it.
 function refreshScaling(socket){
     var refreshParams = {
     };
